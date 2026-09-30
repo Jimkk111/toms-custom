@@ -10,7 +10,9 @@ export const useAppStore = defineStore('app', {
         loading: false,
         // 地址页的返回目标：从"我的"或"提交订单页"进地址页前各写一次，
         // 地址页选完后 redirectTo 回这里，用完即清
-        addressBackUrl: ''
+        addressBackUrl: '',
+        statusBarHeight:0,
+        capsuleBarHeight:44
     }),
     actions: {
         setLoading(v) {
@@ -18,6 +20,9 @@ export const useAppStore = defineStore('app', {
         },
         setAddressBackUrl(url) {
             this.addressBackUrl = url
+        },
+        setStatusBarHeight(value){
+            this.statusBarHeight = value
         }
     }
 })
