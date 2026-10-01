@@ -60,6 +60,13 @@ export const useCartStore = defineStore('cart', {
                 qty: 1
             })
         },
+        // 步进器加号：只对已有行 +1（新行一律由 addItem/addSetmeal 创建，职责分开）
+        increase(lineKey) {
+            const line = this.items.find((item) => item.lineKey === lineKey)
+            if (!line) return
+            line.qty++
+            this.persist()
+        },
         // 步进器减号：减到 0 直接删行，车里不留 qty=0 的行，角标和结算都省判空
         decrease(lineKey) {
             const idx = this.items.findIndex((item) => item.lineKey === lineKey)

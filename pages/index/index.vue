@@ -50,7 +50,7 @@
 									<view class="dish-control">
 										<view v-if="canDirectAdd(dish)" class="add-btn" @click="handleAddCart(dish)">
 											<view class="plus"></view>
-											<view class="num">2</view>
+											<view class="num" v-if="cartStore.qtyOf(dish.id) > 0">{{ cartStore.qtyOf(dish.id) }}</view>
 										</view>
 										<view v-else-if="hasFlavors(dish)" class="choose-btn" @click="handleChooseFlavor(dish)">
 											选规格
@@ -70,20 +70,50 @@
 		</view>
 		<view class="cart">
 			<view class="cart-icon">
-				<view class="bag"></view>
-				<view class="badge">3</view>
+				<view class="bag" @click="toggleCartPopup"></view>
+				<view class="badge" v-if="cartStore.totalCount > 0">{{ cartStore.totalCount }}</view>
 			</view>
 			<view class="cart-info">
-				<view class="total"><text class="ico">￥</text>52</view>
+				<view class="total"><text class="ico">￥</text>{{ cartStore.totalAmount }}</view>
 				<view class="fee">另需配送费￥6元</view>
 			</view>
 			<view class="cart-btn">去结算</view>
+		</view>
+		<!-- 购物车详情弹层：蒙层只盖到栏顶（栏保持可点），面板从栏后往上滑出 -->
+		<view class="cart-mask" :class="{ show: cartVisible }" @click="cartVisible = false"></view>
+		<view class="cart-panel" :class="{ up: cartVisible }">
+			<view class="panel-title">
+				已选商品
+				<view class="clear-btn" @click="handleClearCart">
+					<view class="trash"></view>
+					<text>清空</text>
+				</view>
+			</view>
+			<scroll-view v-if="cartStore.items.length" class="panel-list" scroll-y>
+				<view class="row" v-for="line in cartStore.items" :key="line.lineKey">
+					<image :src="line.image" mode="aspectFill"></image>
+					<view class="row-info">
+						<view class="row-name">{{ line.name }}</view>
+						<view class="row-flavor" v-if="line.flavors.length">{{ line.flavors.join(' / ') }}</view>
+					</view>
+					<view class="row-right">
+						<view class="row-price">￥{{ line.price }}</view>
+						<view class="stepper">
+							<view class="step minus" @click="cartStore.decrease(line.lineKey)">-</view>
+							<view class="qty">{{ line.qty }}</view>
+							<view class="step plus" @click="cartStore.increase(line.lineKey)">+</view>
+						</view>
+					</view>
+				</view>
+			</scroll-view>
+			<view v-else class="panel-empty">购物车空空如也，去挑点好吃的吧</view>
 		</view>
 	</view>
 </template>
 
 <script>
 import { useUserStore } from '../../stores/user'
+import { useCartStore } from '../../stores/cart'
 import { login } from '../../api/user.js'
 import {  getCategoryList, getDishList } from '../../api/dish'
 import HomeHeader from './components/HomeHeader.vue'
@@ -91,11 +121,19 @@ import HomeHeader from './components/HomeHeader.vue'
 		components:{
         	HomeHeader
     	},
+		computed: {
+			// 选项式组件里把 store 挂进 computed，模板里的绑定才有响应式
+			// mok：这里不太懂，后续补一下知识
+			cartStore() {
+				return useCartStore()
+			}
+		},
 		data() {
 			return {
 				menuList:[],
 				dishList:[],
 				activeCategoryId: 0,
+				cartVisible: false,          // 购物车详情弹层开关
 			}
 		},
 		async onLoad() {
@@ -151,6 +189,15 @@ import HomeHeader from './components/HomeHeader.vue'
 					this.loadDishList(item.id)
 				}
 			},
+			toggleCartPopup() {
+				this.cartVisible = !this.cartVisible
+			},
+			// 清空购物车：整车的破坏性操作，先确认再执行；空车直接忽略
+			async handleClearCart() {
+				if (!this.cartStore.items.length) return
+				const res = await uni.showModal({ title: '提示', content: '确定清空购物车吗？' })
+				if (res.confirm) this.cartStore.clear()
+			},
 			// 菜品分类（type=1）且无口味 → 可直接"+"加购；套餐/带口味后续走各自入口
 			canDirectAdd(dish) {
 				return dish.type === 1 && (!dish.flavors || dish.flavors.length === 0)
@@ -172,8 +219,7 @@ import HomeHeader from './components/HomeHeader.vue'
 				uni.showToast({ title: '选套餐（待实现）', icon: 'none' })
 			},
 			handleAddCart(dish) {
-				// TODO: 接购物车数据逻辑
-				uni.showToast({ title: '已加入购物车', icon: 'none' })
+				useCartStore().addItem(dish)     // 无口味单品：直接并行加一，角标/购物车栏随之联动
 			}
 		}
 	}
@@ -190,6 +236,7 @@ import HomeHeader from './components/HomeHeader.vue'
 	}
 	.main {
 		flex:1;
+		// mok：这里不太懂，后续补一下知识
 		min-height: 0;                 // flex 子项默认不小于内容高，缺这行会被列表撑开、col 就无滚可滚
 		display: flex;
 		flex-direction: column;
@@ -544,6 +591,196 @@ import HomeHeader from './components/HomeHeader.vue'
 			color: #1a1a1a;
 			font-size: $font-md;
 			font-weight: 600;
+		}
+	}
+
+	/* ========== 购物车详情弹层 ========== */
+	.cart-mask {
+		position: fixed;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: calc(120rpx + env(safe-area-inset-bottom));   // 只盖到栏顶，购物车栏保持可见可点
+		z-index: 997;                    // 层序：蒙层 997 < 面板 998 < 栏 999，面板从栏后滑出
+		background: rgba(0, 0, 0, 0.4);
+		opacity: 0;
+		visibility: hidden;              // 收起时不拦截底层点击
+		transition: all .3s;
+
+		&.show {
+			opacity: 1;
+			visibility: visible;
+		}
+	}
+
+	.cart-panel {
+		position: fixed;
+		left: 0;
+		right: 0;                          // 通宽占满屏幕
+		bottom: 0;                         // 底边直达屏幕底，盖住底下内容；购物车栏(999)浮在面板上层
+		z-index: 998;                      // 比购物车栏(999)低、比页面内容(蒙层997之下)高
+		display: flex;
+		flex-direction: column;
+		padding-bottom: calc(120rpx + env(safe-area-inset-bottom));   // 让出栏高+栏底距+安全区，末行不被悬浮栏压住
+		background-color: #fff;
+		border-radius: 24rpx 24rpx 0 0;
+		transform: translateY(100%);     // 收起态：向下平移自身高度，完全滑出屏幕底部
+		transition: transform .3s ease;
+
+		&.up {
+			transform: translateY(0);
+		}
+
+		.panel-title {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 24rpx;
+			font-size: $font-md;
+			font-weight: 600;
+			color: $text-main;
+			border-bottom: 1rpx solid $line-color;
+
+			.clear-btn {
+				display: flex;
+				align-items: center;
+				gap: 8rpx;
+				font-size: $font-xs;
+				font-weight: 400;
+				color: $text-sub;
+
+				.trash {                  // CSS 画垃圾桶：桶身 + 桶盖 + 提手
+					position: relative;
+					width: 26rpx;
+					height: 28rpx;
+					border: 3rpx solid $text-sub;
+					border-radius: 4rpx 4rpx 8rpx 8rpx;
+					box-sizing: border-box;
+
+					&::before {          // 桶盖横条
+						content: '';
+						position: absolute;
+						top: -12rpx;
+						left: -6rpx;
+						width: calc(100% + 12rpx);
+						height: 3rpx;
+						background-color: $text-sub;
+					}
+
+					&::after {           // 提手小弧
+						content: '';
+						position: absolute;
+						top: -20rpx;
+						left: 50%;
+						transform: translateX(-50%);
+						width: 10rpx;
+						height: 7rpx;
+						border: 3rpx solid $text-sub;
+						border-bottom: none;
+						border-radius: 6rpx 6rpx 0 0;
+						box-sizing: border-box;
+					}
+				}
+			}
+		}
+
+		.panel-list {
+			max-height: 420rpx;           // 一行 140rpx（上下padding 20×2 + 图 100），3 行封顶，多出内滚
+
+			.row {
+				display: flex;
+				align-items: center;
+				gap: 20rpx;
+				padding: 20rpx 24rpx;
+				border-bottom: 1rpx solid $line-color;
+
+				&:last-child {
+					border-bottom: none;
+				}
+
+				image {
+					width: 100rpx;
+					height: 100rpx;
+					border-radius: 8rpx;
+					flex-shrink: 0;
+					background-color: $bg-cat;   // 占位底色
+				}
+
+				.row-info {
+					flex: 1;
+					min-width: 0;            // 让位给单行省略
+
+					.row-name {
+						font-size: $font-sm;
+						font-weight: 500;
+						color: $text-main;
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+					}
+
+					.row-flavor {
+						margin-top: 4rpx;
+						font-size: $font-xxs;
+						color: $text-sub;
+					}
+				}
+
+				.row-right {
+					display: flex;
+					flex-direction: column;
+					align-items: flex-end;
+
+					.row-price {
+						font-size: $font-md;
+						font-weight: 500;
+						color: $price-color;
+					}
+
+					.stepper {
+						display: flex;
+						align-items: center;
+						gap: 14rpx;
+						margin-top: 8rpx;
+
+						.step {
+							display: flex;
+							align-items: center;
+							justify-content: center;
+							width: 44rpx;
+							height: 44rpx;
+							border-radius: 50%;
+							font-size: 34rpx;
+							line-height: 1;
+						}
+
+						.minus {                 // 空心减号，与实心加号配对
+							border: 2rpx solid $brand-color;
+							color: $brand-color;
+						}
+
+						.plus {                  // 实心加号，与菜品卡"+"同一视觉语言
+							background: $brand-gradient;
+							color: #1a1a1a;
+							font-weight: 600;
+						}
+
+						.qty {
+							min-width: 40rpx;
+							text-align: center;
+							font-size: $font-sm;
+							color: $text-main;
+						}
+					}
+				}
+			}
+		}
+
+		.panel-empty {
+			padding: 100rpx 0;
+			text-align: center;
+			font-size: $font-sm;
+			color: $text-sub;
 		}
 	}
 </style>
