@@ -25,7 +25,7 @@ const request = async function({url,data,method }){
             throw { code: 401, msg: res.data.msg }
         }
         setLoading(false)
-        return res.data.data
+        return res.data
     } catch(e) {
         console.warn(e)
         setLoading(false)

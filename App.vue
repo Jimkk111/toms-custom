@@ -1,5 +1,5 @@
 <script>
-import { useAppStore } from './stores/app'; 
+import { useAppStore } from './stores/app';
 	export default {
 		onLaunch: function() {
 			console.log('App Launch')
@@ -19,4 +19,7 @@ import { useAppStore } from './stores/app';
 
 <style>
 	/*每个页面公共css */
+	page{
+		height:100%;
+	}
 </style>
