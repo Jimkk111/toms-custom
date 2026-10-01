@@ -345,6 +345,7 @@ import SetmealPopup from './components/SetmealPopup.vue'
 
 		.category-col {
 			width: 200rpx;
+			flex-shrink: 0;               // 左栏定宽且禁止被压缩：长文本再猛也挤不动它
 			height: 100%;
 			box-sizing: border-box;
 			padding-bottom: calc(160rpx + env(safe-area-inset-bottom));   // 底部避让悬浮购物车栏+安全区，与右侧菜品列表对齐
@@ -368,6 +369,7 @@ import SetmealPopup from './components/SetmealPopup.vue'
 
 		.dish-col {
 			flex: 1;
+			min-width: 0;                 // 允许比内容（nowrap 长文本）更窄，ellipsis 才有生效前提
 			height: 100%;
 			min-height: 0;
 			background-color: #fff;
@@ -388,6 +390,7 @@ import SetmealPopup from './components/SetmealPopup.vue'
 
 					.dish-info {
 						flex: 1;
+						min-width: 0;        // 同上：不加这行，长 desc 的最小宽度会把整条链撑爆
 						display: flex;
 						flex-direction: column;
 
