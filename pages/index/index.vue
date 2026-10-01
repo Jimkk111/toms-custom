@@ -3,8 +3,8 @@
 		<HomeHeader></HomeHeader>
 		<!-- <button @click="doLogin()">测试</button> -->
 		<view class="main">
-			<view class="head">
-				<view class="shop-card">
+				<view class="hero">
+					<view class="shop-card">
 					<view class="top">
 						<view class="logo">
 							<image></image>
@@ -23,31 +23,31 @@
 					</view>
 				</view>
 			</view>
-			<view class="body">
-				<scroll-view class="left">
-					<view v-for="item in menuList" key="item.id" class="menu-item">
+			<view class="menu-area">
+				<scroll-view class="category-col" scroll-y>
+					<view v-for="item in menuList" :key="item.id" class="category-item">
 						{{ item.name }}
 					</view>
 				</scroll-view>
-				<scroll-view class="right">
+				<scroll-view class="dish-col" scroll-y>
 					<view class="dish-list">
-						<view class="dish" v-for="dish in disList" key="dish.id">
-							<image src=""></image>
+						<view class="dish-card" v-for="dish in dishList" :key="dish.id">
+							<image :src="dish.img" mode="aspectFill"></image>
 							<view class="dish-info">
-								<view class="name">
+								<view class="dish-name">
 									{{ dish.name }}
 								</view>
-								<view class="intro">
+								<view class="dish-desc">
 									{{ dish.desc }}
 								</view>
-								<view class="month-count">
+								<view class="dish-sales">
 									月销量10
 								</view>
-								<view class="bottom">
-									<view class="price">
-										{{ dish.price }}
+								<view class="dish-foot">
+									<view class="dish-price">
+										<text class="ico">￥</text>{{ dish.price }}
 									</view>
-									<view class="select">
+									<view class="dish-control">
 
 									</view>
 								</view>
@@ -103,16 +103,15 @@ import HomeHeader from './components/HomeHeader.vue'
 			}
 		},
 		onLoad() {
-			getDishList(this.categoryId).then((res) => {
-				if(res.code === 1) {
-					this.dishList = res.data.map((dish) => ({
-						id:dish.id,
-						name:dish.name,
-						img:dish.image,
-						desc:dish.description,
-						price:dish.price
-					}))
-				}
+			getDishList(this.categoryId).then((data) => {
+				if (!data) return               // 失败已被 request 层统一 toast，这里只管刹车
+				this.dishList = data.map((dish) => ({
+					id: dish.id,
+					name: dish.name,
+					img: dish.image,
+					desc: dish.description,
+					price: dish.price
+				}))
 			})
 		},
 		methods: {
@@ -149,7 +148,7 @@ import HomeHeader from './components/HomeHeader.vue'
 		flex:1;
 		display: flex;
 		flex-direction: column;
-		.head {
+		.hero {
 			box-sizing: border-box;
 			height: 292rpx;              // 146px × 2，统一 rpx 随屏缩放
 			padding: 26rpx 0;
@@ -221,70 +220,96 @@ import HomeHeader from './components/HomeHeader.vue'
 		}
 	}
 
-	.body {
+	.menu-area {
 		flex: 1;
 		display: flex;
 		overflow: hidden;
 		min-height: 0;
 
-		.left {
+		.category-col {
 			width: 200rpx;
-  			height: 100%;
+			height: 100%;
 			background-color: $bg-cat;
 
-			.menu-item{
-				width:100%;
-				height:100rpx;
+			.category-item {
+				width: 100%;
+				height: 100rpx;
 				line-height: 100rpx;
 				text-align: center;
-				font-size:28rpx;
+				font-size: $font-sm;
+				color: $text-sub;
 
-				&:hover{
+				&.active {              // 分类选中态（做联动时 :class 绑上）
 					background-color: #fff;
+					color: $text-main;
+					font-weight: 500;
 				}
 			}
 		}
 
-		.right {
+		.dish-col {
 			flex: 1;
 			height: 100%;
 			min-height: 0;
+			background-color: #fff;
 
-			.dish-list{
-				margin:auto;
+			.dish-list {
+				padding-bottom: 140rpx;   // 避让悬浮购物车栏，最后一项能滚到可见
 
-				.dish{
+				.dish-card {
 					display: flex;
-					padding-top:10rpx;
-					padding-bottom:10rpx;
-					gap:30rpx;
+					padding: 10rpx 0;
+					gap: 30rpx;
 
-					image{
+					image {
 						width: 172rpx;
 						height: 172rpx;
 						border-radius: 8rpx;
+						flex-shrink: 0;    // 防止长文字把图片挤扁
 					}
 
-					.dish-info{
-						height: 100%;
-						display:flex;
+					.dish-info {
+						flex: 1;
+						display: flex;
 						flex-direction: column;
 
-						.name{
-							font-size:32rpx;
+						.dish-name {
+							font-size: $font-md;
 							font-weight: 600;
-						}
-
-						.intro {
-							font-size:22rpx;
-							color:#666;
-							text-overflow: ellipsis;
+							color: $text-main;
+							white-space: nowrap;
 							overflow: hidden;
+							text-overflow: ellipsis;
 						}
 
-						.month-count{
-							font-size:22rpx;
-							color:#666
+						.dish-desc {
+							font-size: $font-xxs;
+							color: $text-sub;
+							white-space: nowrap;
+							overflow: hidden;
+							text-overflow: ellipsis;
+						}
+
+						.dish-sales {
+							font-size: $font-xxs;
+							color: $text-sub;
+						}
+
+						.dish-foot {
+							display: flex;
+							justify-content: space-between;
+							align-items: center;
+							margin-top: auto;    // 价格行沉到卡片底部
+
+							.dish-price {
+								font-size: $font-lg;
+								color: $price-color;
+								font-weight: 500;
+
+								.ico {
+									font-size: $font-xs;
+								}
+							}
 						}
 					}
 				}
