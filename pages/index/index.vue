@@ -48,7 +48,18 @@
 										<text class="ico">￥</text>{{ dish.price }}
 									</view>
 									<view class="dish-control">
-
+										<view v-if="canDirectAdd(dish)" class="add-btn" @click="handleAddCart(dish)">
+											<view class="plus"></view>
+											<view class="num">2</view>
+										</view>
+										<view v-else-if="hasFlavors(dish)" class="choose-btn" @click="handleChooseFlavor(dish)">
+											选规格
+											<view class="num">2</view>
+										</view>
+										<view v-else-if="isSetmeal(dish)" class="setmeal-btn" @click="handleChooseSetmeal(dish)">
+											选套餐
+											<view class="num">2</view>
+										</view>
 									</view>
 								</view>
 							</view>
@@ -87,8 +98,8 @@ import HomeHeader from './components/HomeHeader.vue'
 				activeCategoryId: 0,
 			}
 		},
-		onLoad() {
-			this.loadCategoryList()
+		async onLoad() {
+			await this.loadCategoryList()
 			this.loadDishList()
 		},
 		methods: {
@@ -98,19 +109,26 @@ import HomeHeader from './components/HomeHeader.vue'
 				const menuList = res.map((category) => ({
 					id: category.id,
 					name: category.name,
+					type: category.type
 				}))
-				this.menuList = [{id:0,name:'全部'},...menuList]
+				this.menuList = [{id:0,name:'全部',type:null},...menuList]
 			},
 			async loadDishList(categoryId) {
 				const data = await getDishList(categoryId)
 				if (!data) return               
-				this.dishList = data.map((dish) => ({
-					id: dish.id,
-					name: dish.name,
-					img: dish.image,
-					desc: dish.description,
-					price: dish.price
-				}))
+				this.dishList = data.map((dish) => {
+					const type = this.menuList.find((category) => category.id === dish.categoryId)?.type || null
+					return {
+						id: dish.id,
+						categoryId: dish.categoryId,
+						name: dish.name,
+						type: type,
+						flavors: dish.flavors,
+						img: dish.image,
+						desc: dish.description,
+						price: dish.price
+					}
+				})
 			},
 			async doLogin(){
 				const userStore = useUserStore()
@@ -132,6 +150,30 @@ import HomeHeader from './components/HomeHeader.vue'
 				} else {
 					this.loadDishList(item.id)
 				}
+			},
+			// 菜品分类（type=1）且无口味 → 可直接"+"加购；套餐/带口味后续走各自入口
+			canDirectAdd(dish) {
+				return dish.type === 1 && (!dish.flavors || dish.flavors.length === 0)
+			},
+			// 菜品分类（type=1）且带口味 → "选规格"入口，点击弹口味选择
+			hasFlavors(dish) {
+				return dish.type === 1 && dish.flavors && dish.flavors.length > 0
+			},
+			handleChooseFlavor(dish) {
+				// TODO: 弹口味选择弹窗
+				uni.showToast({ title: '选规格（待实现）', icon: 'none' })
+			},
+			// 套餐分类（type=2）→ "选套餐"入口，跳套餐详情选内容
+			isSetmeal(dish) {
+				return dish.type === 2
+			},
+			handleChooseSetmeal(dish) {
+				// TODO: 跳套餐详情页
+				uni.showToast({ title: '选套餐（待实现）', icon: 'none' })
+			},
+			handleAddCart(dish) {
+				// TODO: 接购物车数据逻辑
+				uni.showToast({ title: '已加入购物车', icon: 'none' })
 			}
 		}
 	}
@@ -257,8 +299,7 @@ import HomeHeader from './components/HomeHeader.vue'
 			background-color: #fff;
 
 			.dish-list {
-				padding-bottom: calc(160rpx + env(safe-area-inset-bottom));   // 避让悬浮购物车栏（含凸出圆钮 + iPhone 安全区）
-				padding-top:20rpx;
+				padding: 20rpx 20rpx calc(160rpx + env(safe-area-inset-bottom));   // 左右留边不贴屏；底部避让购物车栏（含凸出圆钮 + iPhone 安全区）
 				.dish-card {
 					display: flex;
 					padding: 10rpx 0;
@@ -304,16 +345,89 @@ import HomeHeader from './components/HomeHeader.vue'
 							align-items: center;
 							margin-top: auto;    // 价格行沉到卡片底部
 
-							.dish-price {
-								font-size: $font-lg;
-								color: $price-color;
-								font-weight: 500;
+						.dish-price {
+							font-size: $font-lg;
+							color: $price-color;
+							font-weight: 500;
 
-								.ico {
-									font-size: $font-xs;
-								}
+							.ico {
+								font-size: $font-xs;
 							}
 						}
+
+						.dish-control {
+							display: flex;             // 右对齐占位，后续数量步进器也放这
+							align-items: center;
+
+							.add-btn {                 // 直加购"+"：黄圆底黑加号
+								position: relative;
+								width: 56rpx;
+								height: 56rpx;
+								border-radius: 50%;
+								background: $brand-gradient;
+
+								.plus {
+									position: absolute;
+									left: 50%;
+									top: 50%;
+									width: 26rpx;
+									height: 26rpx;
+									transform: translate(-50%, -50%);
+
+									&::before,          // 横笔
+									&::after {          // 竖笔
+										content: '';
+										position: absolute;
+										background-color: #1a1a1a;
+									}
+
+									&::before {
+										left: 0;
+										top: 50%;
+										width: 100%;
+										height: 5rpx;
+										transform: translateY(-50%);
+									}
+
+									&::after {
+										top: 0;
+										left: 50%;
+										width: 5rpx;
+										height: 100%;
+										transform: translateX(-50%);
+									}
+								}
+
+							}
+
+							.num {                 // 已加购数量角标（硬编码占位，逻辑后接），加购/选规格两钮共用
+								position: absolute;
+								top: -10rpx;
+								right: -10rpx;
+								min-width: 30rpx;
+								height: 30rpx;
+								line-height: 30rpx;
+								padding: 0 6rpx;
+								border-radius: 15rpx;
+								background-color: $price-color;
+								color: #fff;
+								font-size: $font-xxs;
+								text-align: center;
+								box-sizing: border-box;
+							}
+
+							.choose-btn,             // 带口味菜品的"选规格"入口：黄胶囊
+							.setmeal-btn {           // 套餐的"选套餐"入口：同款胶囊
+								position: relative;     // 供数量角标定位
+								padding: 12rpx 24rpx;
+								border-radius: 999rpx;   // 圆角给足成胶囊，高度由文字+内边距撑出
+								background: $brand-gradient;
+								color: #1a1a1a;
+								font-size: $font-xs;
+								font-weight: 500;
+							}
+						}
+					}
 					}
 				}
 			}
