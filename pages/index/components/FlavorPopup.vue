@@ -13,17 +13,17 @@
 						<view class="dish-price"><text class="ico">￥</text>{{ dish.price }}</view>
 					</view>
 				</view>
-				<!-- 口味分组：每组标题 + 选项标签（当前只渲染，选中/收集逻辑后续接） -->
+				<!-- 口味分组：每组标题 + 选项标签 -->
 				<view class="flavor-group" v-for="group in flavorGroups" :key="group.name">
 					<view class="group-name">{{ group.name }}</view>
 					<view class="tags">
-						<view class="tag" v-for="opt in group.options" :key="opt">{{ opt }}</view>
+						<view class="tag" v-for="opt in group.options" :key="opt" :class="{ active: isSelected(group.name) === opt }" @click="handleSelectFlavor(group.name,opt)">{{ opt }}</view>
 					</view>
 				</view>
 			</scroll-view>
-			<!-- 底部操作区：通栏"加入购物车"（样式先行，点击逻辑后接） -->
+			<!-- 底部操作区：通栏"加入购物车" -->
 			<view class="popup-footer">
-				<view class="confirm-btn">加入购物车</view>
+				<view class="confirm-btn" @click="handleAddFlavoredDish()">加入购物车</view>
 			</view>
 		</view>
 	</view>
@@ -35,7 +35,8 @@ export default {
 	data() {
 		return {
 			visible: false,
-			dish: {}          // open 时写入，模板渲染全靠它
+			dish: {},          // open 时写入，模板渲染全靠它
+			formData:[]
 		}
 	},
 	computed: {
@@ -43,7 +44,13 @@ export default {
 		flavorGroups() {
 			return (this.dish.flavors || []).map((group) => ({
 				name: group.name,
-				options: (group.value || '').split(',')
+				// value 实际形如 "[冷,热]"：先剥首尾方括号再切，顺带 trim 空白、滤掉空串防幽灵标签
+				options: (group.value || '')
+					.replace(/^\[/, '')
+					.replace(/\]$/, '')
+					.split(',')
+					.map((opt) => opt.trim())
+					.filter(Boolean)
 			}))
 		}
 	},
@@ -52,11 +59,47 @@ export default {
 		open(dish) {
 			this.dish = dish
 			this.visible = true
+			console.log("dish======》",this.dish)
+			// 打开即重建（不依赖 close 清空）：任何路径再开都是干净的，顺带防空指针
+			this.formData = (dish.flavors || []).map((item) => ({
+				name: item.name,
+				id: item.id,
+				value: ''
+			}))
 		},
 		close() {
 			this.visible = false
+			this.formData = []
+		},
+		handleSelectFlavor(name,opt){
+			this.formData.forEach((item) => {
+				if(item.name === name){
+					item.value = opt
+				}
+			})
+			console.log("formData======》",this.formData)
+		},
+		isSelected(name) {
+			const group = this.formData.find((item) => item.name === name)
+			return group ? group.value : ''
+		},
+		handleAddFlavoredDish(){
+			const isAllSelected = this.formData.every((item) => item.value !== '')
+			if( !isAllSelected) {
+				uni.showToast({
+					title: '请先选择所有口味',
+					icon: 'none'
+				})
+				return
+			}
+			// 校验通过即视为提交：发 {dish, 口味扁平数组}，加购由页面收口；随后收弹窗
+			this.$emit('addFlavoredDish', {
+				dish: this.dish,
+				flavors: this.formData.map((item) => item.value)
+			})
+			this.close()
 		}
-	}
+	},
 }
 </script>
 
@@ -182,6 +225,12 @@ export default {
 					background-color: $bg-cat;
 					color: $text-sub;
 					font-size: $font-xs;
+
+					&.active {              // 选中态：品牌黄底黑字
+						background: $brand-gradient;
+						color: #1a1a1a;
+						font-weight: 500;
+					}
 				}
 			}
 		}

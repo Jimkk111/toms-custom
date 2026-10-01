@@ -54,7 +54,7 @@
 										</view>
 										<view v-else-if="hasFlavors(dish)" class="choose-btn" @click="handleChooseFlavor(dish)">
 											选规格
-											<view class="num">2</view>
+											<view class="num" v-if="cartStore.qtyOf(dish.id) > 0">{{ cartStore.qtyOf(dish.id) }}</view>
 										</view>
 										<view v-else-if="isSetmeal(dish)" class="setmeal-btn" @click="handleChooseSetmeal(dish)">
 											选套餐
@@ -108,7 +108,7 @@
 			</scroll-view>
 			<view v-else class="panel-empty">购物车空空如也，去挑点好吃的吧</view>
 		</view>
-		<FlavorPopup ref="flavorPopup"></FlavorPopup>
+		<FlavorPopup ref="flavorPopup" @addFlavoredDish="onFlavorConfirm"></FlavorPopup>
 	</view>
 </template>
 
@@ -210,7 +210,11 @@ import FlavorPopup from './components/FlavorPopup.vue'
 				return dish.type === 1 && dish.flavors && dish.flavors.length > 0
 			},
 			handleChooseFlavor(dish) {
-				this.$refs.flavorPopup.open(dish)     // 选中/收集/提交逻辑后续在组件里补
+				this.$refs.flavorPopup.open(dish)
+			},
+			// 口味弹窗提交：组件只管选+校验+发事件，加购在页面侧收口
+			onFlavorConfirm({ dish, flavors }) {
+				useCartStore().addItem(dish, flavors)
 			},
 			// 套餐分类（type=2）→ "选套餐"入口，跳套餐详情选内容
 			isSetmeal(dish) {
