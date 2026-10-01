@@ -5,11 +5,22 @@ import { useAppStore } from '../stores/app'
 // ===== 与后端对齐的契约常量（后端约定变了只改这里）=====
 const SUCCESS_CODE = 1        // 业务成功码
 const NO_AUTH_URLS = [        // 无需登录态即可调用的接口（登录本身要在拿到凭证前调）
-    '/user/login'
+    '/user/login',
+    '/category/list',
+    '/dish/list'
 ]
 
 // 并发计数：>0 即 loading。布尔开关会被并发请求"提前关闭"
 let pendingCount = 0
+
+// 参数清洗：undefined / null / '' 一律不上请求，GET 不会拼出 type=undefined
+const cleanData = (data) =>
+    Object.keys(data)
+        .filter((key) => data[key] !== undefined && data[key] !== null && data[key] !== '')
+        .reduce((params, key) => {
+            params[key] = data[key]
+            return params
+        }, {})
 
 const request = async function ({ url, data = {}, method = 'GET', header = {}, silent = false }) {
     const userStore = useUserStore()
@@ -30,7 +41,7 @@ const request = async function ({ url, data = {}, method = 'GET', header = {}, s
         const res = await uni.request({
             url: baseUrl + url,
             method,
-            data,
+            data: cleanData(data),
             timeout: 10000,                    // 默认 60s 太久，用户等不了
             header: {
                 Cookie: 'JSESSIONID=' + userStore.sessionId,
@@ -39,7 +50,7 @@ const request = async function ({ url, data = {}, method = 'GET', header = {}, s
         })
 
         // ---- HTTP 层 ----
-        // 鉴权失败：后端返回 HTTP 401（实测确认）→ 清本地登录态，引导重登
+        // 鉴权失败：后端返回 HTTP 401 → 清本地登录态，引导重登
         if (res.statusCode === 401) {
             userStore.logOut()
             uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })

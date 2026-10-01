@@ -25,7 +25,7 @@
 			</view>
 			<view class="menu-area">
 				<scroll-view class="category-col" scroll-y>
-					<view v-for="item in menuList" :key="item.id" class="category-item">
+					<view v-for="item in menuList" :key="item.id" class="category-item" :class="{ active: item.id === activeCategoryId }" @click="handleChangeCategory(item)">
 						{{ item.name }}
 					</view>
 				</scroll-view>
@@ -64,7 +64,7 @@
 <script>
 import { useUserStore } from '../../stores/user'
 import { login } from '../../api/user.js'
-import { getDishList } from '../../api/dish'
+import {  getCategoryList, getDishList } from '../../api/dish'
 import HomeHeader from './components/HomeHeader.vue'
 	export default {
 		components:{
@@ -72,39 +72,28 @@ import HomeHeader from './components/HomeHeader.vue'
     	},
 		data() {
 			return {
-				menuList:[
-					{
-						id:1,
-						name:"招牌推荐"
-					},
-					{
-						id:2,
-						name:"经典套餐"
-					},
-					{
-						id:3,
-						name:"主食"
-					},
-					{
-						id:4,
-						name:"小吃炸物"
-					},
-					{
-						id:5,
-						name:"甜点饮品"
-					},
-					{
-						id:6,
-						name:"优惠套餐"
-					}
-				],
+				menuList:[],
 				dishList:[],
-				categoryId:11
+				activeCategoryId: 0,
 			}
 		},
 		onLoad() {
-			getDishList(this.categoryId).then((data) => {
-				if (!data) return               // 失败已被 request 层统一 toast，这里只管刹车
+			this.loadCategoryList()
+			this.loadDishList()
+		},
+		methods: {
+			async loadCategoryList() {
+				const res = await getCategoryList()
+				if (!res) return               
+				const menuList = res.map((category) => ({
+					id: category.id,
+					name: category.name,
+				}))
+				this.menuList = [{id:0,name:'全部'},...menuList]
+			},
+			async loadDishList(categoryId) {
+				const data = await getDishList(categoryId)
+				if (!data) return               
 				this.dishList = data.map((dish) => ({
 					id: dish.id,
 					name: dish.name,
@@ -112,25 +101,27 @@ import HomeHeader from './components/HomeHeader.vue'
 					desc: dish.description,
 					price: dish.price
 				}))
-			})
-		},
-		methods: {
-			doLogin(){
-				uni.login({
-					provider:'weixin',
-					success: (res) => {
-						const code = res.code
-						login({ code })
-						.then((res) => {
-							const userStore = useUserStore()
-							userStore.setSessionId(res.data.sessionId)
-							console.log("user_sessionId=====>",userStore.sessionId)
-						})
-						.catch((e) => {
-							console.log("登录失败！",e)
-						})
-					}
-				})
+			},
+			async doLogin(){
+				const userStore = useUserStore()
+				try {
+					const loginRes = await uni.login({provider})
+					const data = await login({code:loginRes.code})
+					if(!data) return
+					userStore.setSessionId(data.sessionId)
+					userStore.setUser(data.userInfo)
+					uni.showToast({ title: '登录成功', icon: 'none' })
+				} catch(e) {
+					uni.showToast({ title: '微信登录失败', icon: 'none' })
+				}
+			},
+			handleChangeCategory(item){
+				this.activeCategoryId = item.id
+				if(item.id === 0) {
+					this.loadDishList()
+				} else {
+					this.loadDishList(item.id)
+				}
 			}
 		}
 	}
