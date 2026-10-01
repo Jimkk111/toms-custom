@@ -1,20 +1,30 @@
 import { defineStore } from 'pinia'
+import { addCart, subCart, cleanCart, listCart } from '@/api/cart.js'
 
-// 购物车：本地唯一数据源，storage 兜底防冷启动丢车；结算时整体提交，价格以后端重算为准
-// 行的两级身份（字段冗余是故意的，职责不同）：
-//   lineKey —— 行的身份：同菜品+同口味组合（口味排序归一化后）才算同一行，加购时据此并行
-//   dishId / setmealId —— 归属聚合：菜品卡角标要跨口味行汇总数量，靠它查询
-const CART_KEY = 'CART'
+// 服务端购物车：接口数据为准，本地 state 只是缓存视图（不再落 storage，车随账号走）
+// 后端行身份 = dishId/setmealId + dishFlavor 三件套；行上冗余保留 dishId/setmealId 供卡片角标跨口味聚合
+// amount 是后端存的单价快照，合计 = Σ amount × number
+const toLine = (row) => ({
+    id: row.id,
+    dishId: row.dishId || null,
+    setmealId: row.setmealId || null,
+    dishFlavor: row.dishFlavor || '',
+    name: row.name,
+    image: row.image,
+    price: row.amount,
+    flavors: row.dishFlavor ? row.dishFlavor.split(',') : [],
+    qty: row.number
+})
 
 export const useCartStore = defineStore('cart', {
     state: () => ({
-        items: uni.getStorageSync(CART_KEY) || []
+        items: []
     }),
 
     getters: {
         // 购物车栏大角标：总份数
         totalCount: (state) => state.items.reduce((sum, item) => sum + item.qty, 0),
-        // 购物车栏合计金额（乘加后收口到分，避免展示 52.00000000001）
+        // 合计金额（乘加后收口到分）
         totalAmount: (state) =>
             Math.round(state.items.reduce((sum, item) => sum + item.price * item.qty, 0) * 100) / 100
     },
@@ -33,65 +43,36 @@ export const useCartStore = defineStore('cart', {
                 .reduce((sum, item) => sum + item.qty, 0)
         },
 
-        // 菜品加购：无口味直接 addItem(dish)；口味弹窗确认后 addItem(dish, ['少冰','半糖'])
-        addItem(dish, flavors = []) {
-            const flv = [...(flavors || [])].sort()      // 拷贝+排序归一化，别复用入参数组
-            this.upsert({
-                lineKey: `dish_${dish.id}_${flv.join('/')}`,
-                dishId: dish.id,
-                setmealId: null,
-                name: dish.name,
-                image: dish.img || dish.image,
-                price: dish.price,
-                flavors: flv,
-                qty: 1
-            })
+        // 拉取服务端购物车并整体覆盖（登录后/进主页/每次增删后调用）
+        async load() {
+            const data = await listCart()
+            this.items = (data || []).map(toLine)
         },
-        // 套餐加购：没有口味维度，setmealId 即身份
-        addSetmeal(setmeal) {
-            this.upsert({
-                lineKey: `setmeal_${setmeal.id}`,
-                dishId: null,
-                setmealId: setmeal.id,
-                name: setmeal.name,
-                image: setmeal.img || setmeal.image,
-                price: setmeal.price,
-                flavors: [],
-                qty: 1
-            })
+
+        // 菜品加购：口味数组按分组顺序拼成 dishFlavor 字符串（同一道菜每次选择顺序一致，后端才能并到同一行）
+        async addItem(dish, flavors = []) {
+            await addCart({ dishId: dish.id, setmealId: null, dishFlavor: [...(flavors || [])].join(',') })
+            await this.load()
         },
-        // 步进器加号：只对已有行 +1（新行一律由 addItem/addSetmeal 创建，职责分开）
-        increase(lineKey) {
-            const line = this.items.find((item) => item.lineKey === lineKey)
-            if (!line) return
-            line.qty++
-            this.persist()
+        // 套餐加购：无口味维度，setmealId 即身份
+        async addSetmeal(setmeal) {
+            await addCart({ dishId: null, setmealId: setmeal.id, dishFlavor: '' })
+            await this.load()
         },
-        // 步进器减号：减到 0 直接删行，车里不留 qty=0 的行，角标和结算都省判空
-        decrease(lineKey) {
-            const idx = this.items.findIndex((item) => item.lineKey === lineKey)
-            if (idx === -1) return
-            if (--this.items[idx].qty <= 0) this.items.splice(idx, 1)
-            this.persist()
+        // 步进器加：对已有行身份再 add 一次，后端定位到同一行 number+1
+        async increase(line) {
+            await addCart({ dishId: line.dishId, setmealId: line.setmealId, dishFlavor: line.dishFlavor })
+            await this.load()
         },
-        // 下单成功后清空
-        clear() {
+        // 步进器减：后端减到 0 自动删行
+        async decrease(line) {
+            await subCart({ dishId: line.dishId, setmealId: line.setmealId, dishFlavor: line.dishFlavor })
+            await this.load()
+        },
+        // 清空（下单成功后/用户主动清空）
+        async clean() {
+            await cleanCart()
             this.items = []
-            this.persist()
-        },
-
-        /* ---- 以下内部实现，页面不要直接调 ---- */
-
-        // 按 lineKey 并行：已有该行则 qty+1，否则插入新行
-        upsert(line) {
-            const existing = this.items.find((item) => item.lineKey === line.lineKey)
-            if (existing) existing.qty++
-            else this.items.push(line)
-            this.persist()
-        },
-        // 持久化在 store 内收口，组件层不各自读写 storage，避免两套数据源打架
-        persist() {
-            uni.setStorageSync(CART_KEY, this.items)
         }
     }
 })

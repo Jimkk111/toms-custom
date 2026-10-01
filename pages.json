@@ -12,6 +12,12 @@
 			"style": {
 				"navigationBarTitleText": "提交订单"
 			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
 		}
 	],
 	"globalStyle": {

@@ -90,7 +90,7 @@
 				</view>
 			</view>
 			<scroll-view v-if="cartStore.items.length" class="panel-list" scroll-y>
-				<view class="row" v-for="line in cartStore.items" :key="line.lineKey">
+				<view class="row" v-for="line in cartStore.items" :key="line.id">
 					<image :src="line.image" mode="aspectFill"></image>
 					<view class="row-info">
 						<view class="row-name">{{ line.name }}</view>
@@ -99,9 +99,9 @@
 					<view class="row-right">
 						<view class="row-price">￥{{ line.price }}</view>
 						<view class="stepper">
-							<view class="step minus" @click="cartStore.decrease(line.lineKey)">-</view>
+							<view class="step minus" @click="cartStore.decrease(line)">-</view>
 							<view class="qty">{{ line.qty }}</view>
-							<view class="step plus" @click="cartStore.increase(line.lineKey)">+</view>
+							<view class="step plus" @click="cartStore.increase(line)">+</view>
 						</view>
 					</view>
 				</view>
@@ -116,7 +116,6 @@
 <script>
 import { useUserStore } from '../../stores/user'
 import { useCartStore } from '../../stores/cart'
-import { login } from '../../api/user.js'
 import {  getCategoryList, getDishList, getSetmealList } from '../../api/dish'
 import HomeHeader from './components/HomeHeader.vue'
 import FlavorPopup from './components/FlavorPopup.vue'
@@ -145,6 +144,10 @@ import SetmealPopup from './components/SetmealPopup.vue'
 		async onLoad() {
 			await this.loadCategoryList()
 			this.loadDishList()
+			// 已登录才拉服务端购物车（该接口不在白名单）；未登录等触发登录后自然会拉
+			if (useUserStore().sessionId) {
+				this.cartStore.load()
+			}
 		},
 		methods: {
 			async loadCategoryList() {
@@ -187,19 +190,6 @@ import SetmealPopup from './components/SetmealPopup.vue'
 					}
 				})
 			},
-			async doLogin(){
-				const userStore = useUserStore()
-				try {
-					const loginRes = await uni.login({provider})
-					const data = await login({code:loginRes.code})
-					if(!data) return
-					userStore.setSessionId(data.sessionId)
-					userStore.setUser(data.userInfo)
-					uni.showToast({ title: '登录成功', icon: 'none' })
-				} catch(e) {
-					uni.showToast({ title: '微信登录失败', icon: 'none' })
-				}
-			},
 			handleChangeCategory(item){
 				this.activeCategoryId = item.id
 				if(item.id === 0) {
@@ -211,11 +201,11 @@ import SetmealPopup from './components/SetmealPopup.vue'
 			toggleCartPopup() {
 				this.cartVisible = !this.cartVisible
 			},
-			// 清空购物车：整车的破坏性操作，先确认再执行；空车直接忽略
+			// 清空购物车：整车的破坏性操作，先确认再执行（服务端 clean）；空车直接忽略
 			async handleClearCart() {
 				if (!this.cartStore.items.length) return
 				const res = await uni.showModal({ title: '提示', content: '确定清空购物车吗？' })
-				if (res.confirm) this.cartStore.clear()
+				if (res.confirm) await this.cartStore.clean()
 			},
 			// 菜品分类（type=1）且无口味 → 可直接"+"加购；套餐/带口味后续走各自入口
 			canDirectAdd(dish) {

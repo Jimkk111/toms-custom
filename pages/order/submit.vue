@@ -15,7 +15,7 @@
 				<text class="title">订单明细</text>
 				<text class="count">共 {{ cartStore.totalCount }} 件</text>
 			</view>
-			<view class="line" v-for="line in cartStore.items" :key="line.lineKey">
+			<view class="line" v-for="line in cartStore.items" :key="line.id">
 				<view class="line-info">
 					<view class="line-name">{{ line.name }}</view>
 					<view class="line-flavor" v-if="line.flavors.length">{{ line.flavors.join(' / ') }}</view>
@@ -64,7 +64,9 @@ export default {
 			return useUserStore()
 		}
 	},
-	onLoad() {
+	async onLoad() {
+		// 进页先刷一次服务端购物车（车随账号走，以服务端为准）
+		await this.cartStore.load()
 		// 空车直进守卫：正常流程必然从购物车结算进来，不该出现空明细
 		if (!useCartStore().items.length) {
 			uni.showToast({ title: '请先选购商品', icon: 'none' })

@@ -27,9 +27,15 @@ const request = async function ({ url, data = {}, method = 'GET', header = {}, s
     const userStore = useUserStore()
     const appStore = useAppStore()
 
-    // 前置拦截：白名单外、未登录 → 不发请求（省一次注定失败的往返）
+    // 前置拦截：白名单外、未登录 → 不发请求（省一次注定失败的往返），转登录页
+    // 查当前页防止并发请求重复跳转（登录页本身不会再触发非白名单请求，稳态即安全）
     if (!NO_AUTH_URLS.includes(url) && !userStore.sessionId) {
-        uni.showToast({ title: '请先登录', icon: 'none' })
+        const pages = getCurrentPages()
+        const current = pages[pages.length - 1]
+        if (!current || current.route !== 'pages/login/login') {
+            uni.showToast({ title: '请先登录', icon: 'none' })
+            uni.reLaunch({ url: '/pages/login/login' })
+        }
         return null
     }
 
@@ -51,10 +57,11 @@ const request = async function ({ url, data = {}, method = 'GET', header = {}, s
         })
 
         // ---- HTTP 层 ----
-        // 鉴权失败：后端返回 HTTP 401 → 清本地登录态，引导重登
+        // 鉴权失败：后端返回 HTTP 401 → 清本地登录态，回登录页重登
         if (res.statusCode === 401) {
             userStore.logOut()
             uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+            uni.reLaunch({ url: '/pages/login/login' })
             return null
         }
         // 404/500/502 等：body 是网关错误体，结构不可信
