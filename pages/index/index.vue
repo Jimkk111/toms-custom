@@ -77,7 +77,7 @@
 				<view class="total"><text class="ico">￥</text>{{ cartStore.totalAmount }}</view>
 				<view class="fee">另需配送费￥6元</view>
 			</view>
-			<view class="cart-btn">去结算</view>
+			<view class="cart-btn" @click="goToOrderSubmit">去结算</view>
 		</view>
 		<!-- 购物车详情弹层：蒙层只盖到栏顶（栏保持可点），面板从栏后往上滑出 -->
 		<view class="cart-mask" :class="{ show: cartVisible }" @click="cartVisible = false"></view>
@@ -242,6 +242,12 @@ import SetmealPopup from './components/SetmealPopup.vue'
 			// 套餐弹窗提交：组件发整套数据，页面调 store 加购
 			onSetmealConfirm(setmeal) {
 				useCartStore().addSetmeal(setmeal)
+			},
+			// 去结算：收起购物车弹层再跳提交订单页；navigateTo 进去原生导航栏自带返回（返回即主页）
+			goToOrderSubmit() {
+				if (!this.cartStore.items.length) return
+				this.cartVisible = false
+				uni.navigateTo({ url: '/pages/order/submit' })
 			},
 			handleAddCart(dish) {
 				useCartStore().addItem(dish)     // 无口味单品：直接并行加一，角标/购物车栏随之联动
