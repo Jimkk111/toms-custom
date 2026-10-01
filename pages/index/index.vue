@@ -134,9 +134,11 @@ import HomeHeader from './components/HomeHeader.vue'
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		overflow: hidden;
 	}
 	.main {
 		flex:1;
+		min-height: 0;                 // flex 子项默认不小于内容高，缺这行会被列表撑开、col 就无滚可滚
 		display: flex;
 		flex-direction: column;
 		.hero {
@@ -246,7 +248,7 @@ import HomeHeader from './components/HomeHeader.vue'
 
 			.dish-list {
 				padding-bottom: 140rpx;   // 避让悬浮购物车栏，最后一项能滚到可见
-
+				padding-top:20rpx;
 				.dish-card {
 					display: flex;
 					padding: 10rpx 0;
