@@ -58,7 +58,7 @@
 										</view>
 										<view v-else-if="isSetmeal(dish)" class="setmeal-btn" @click="handleChooseSetmeal(dish)">
 											选套餐
-											<view class="num">2</view>
+											<view class="num" v-if="cartStore.setmealQtyOf(dish.id) > 0">{{ cartStore.setmealQtyOf(dish.id) }}</view>
 										</view>
 									</view>
 								</view>
@@ -109,6 +109,7 @@
 			<view v-else class="panel-empty">购物车空空如也，去挑点好吃的吧</view>
 		</view>
 		<FlavorPopup ref="flavorPopup" @addFlavoredDish="onFlavorConfirm"></FlavorPopup>
+		<SetmealPopup ref="setmealPopup" @addSetmeal="onSetmealConfirm"></SetmealPopup>
 	</view>
 </template>
 
@@ -116,13 +117,15 @@
 import { useUserStore } from '../../stores/user'
 import { useCartStore } from '../../stores/cart'
 import { login } from '../../api/user.js'
-import {  getCategoryList, getDishList } from '../../api/dish'
+import {  getCategoryList, getDishList, getSetmealList } from '../../api/dish'
 import HomeHeader from './components/HomeHeader.vue'
 import FlavorPopup from './components/FlavorPopup.vue'
+import SetmealPopup from './components/SetmealPopup.vue'
 	export default {
 		components:{
         	HomeHeader,
-        	FlavorPopup
+        	FlavorPopup,
+        	SetmealPopup
     	},
 		computed: {
 			// 选项式组件里把 store 挂进 computed，模板里的绑定才有响应式
@@ -155,8 +158,21 @@ import FlavorPopup from './components/FlavorPopup.vue'
 				this.menuList = [{id:0,name:'全部',type:null},...menuList]
 			},
 			async loadDishList(categoryId) {
-				const data = await getDishList(categoryId)
-				if (!data) return               
+				// 数据源按分类类型分流：套餐分类查 /setmeal/list，菜品分类查 /dish/list，"全部"两者并行合并
+				const categoryType = categoryId != null
+					? this.menuList.find((category) => category.id === categoryId)?.type
+					: null
+				let data
+				if (categoryType === 2) {
+					data = await getSetmealList(categoryId)
+				} else if (categoryId != null) {
+					data = await getDishList(categoryId)
+				} else {
+					const [dishes, setmeals] = await Promise.all([getDishList(), getSetmealList()])
+					if (!dishes && !setmeals) return      // 两边全挂才放弃；单边挂了还能展示另一半
+					data = [...(dishes || []), ...(setmeals || [])]
+				}
+				if (!data) return
 				this.dishList = data.map((dish) => {
 					const type = this.menuList.find((category) => category.id === dish.categoryId)?.type || null
 					return {
@@ -164,7 +180,7 @@ import FlavorPopup from './components/FlavorPopup.vue'
 						categoryId: dish.categoryId,
 						name: dish.name,
 						type: type,
-						flavors: dish.flavors,
+						flavors: dish.flavors || [],   // 套餐接口无此字段，兜底成空数组保证结构归一
 						img: dish.image,
 						desc: dish.description,
 						price: dish.price
@@ -221,8 +237,11 @@ import FlavorPopup from './components/FlavorPopup.vue'
 				return dish.type === 2
 			},
 			handleChooseSetmeal(dish) {
-				// TODO: 跳套餐详情页
-				uni.showToast({ title: '选套餐（待实现）', icon: 'none' })
+				this.$refs.setmealPopup.open(dish)
+			},
+			// 套餐弹窗提交：组件发整套数据，页面调 store 加购
+			onSetmealConfirm(setmeal) {
+				useCartStore().addSetmeal(setmeal)
 			},
 			handleAddCart(dish) {
 				useCartStore().addItem(dish)     // 无口味单品：直接并行加一，角标/购物车栏随之联动
@@ -327,6 +346,8 @@ import FlavorPopup from './components/FlavorPopup.vue'
 		.category-col {
 			width: 200rpx;
 			height: 100%;
+			box-sizing: border-box;
+			padding-bottom: calc(160rpx + env(safe-area-inset-bottom));   // 底部避让悬浮购物车栏+安全区，与右侧菜品列表对齐
 			background-color: $bg-cat;
 
 			.category-item {
@@ -492,7 +513,7 @@ import FlavorPopup from './components/FlavorPopup.vue'
 		position: fixed;
 		left: 20rpx;
 		right: 20rpx;
-		bottom: calc(20rpx + env(safe-area-inset-bottom));   // 避让 iPhone 底部小黑条
+		bottom: env(safe-area-inset-bottom);   // 贴到安全区边缘（栏顶 = 100rpx + 安全区，下方各处避让值以此为准）
 		z-index: 999;
 		display: flex;
 		align-items: center;
@@ -606,7 +627,7 @@ import FlavorPopup from './components/FlavorPopup.vue'
 		left: 0;
 		right: 0;
 		top: 0;
-		bottom: calc(120rpx + env(safe-area-inset-bottom));   // 只盖到栏顶，购物车栏保持可见可点
+		bottom: calc(100rpx + env(safe-area-inset-bottom));   // 只盖到栏顶（栏高100rpx+安全区），购物车栏保持可见可点
 		z-index: 997;                    // 层序：蒙层 997 < 面板 998 < 栏 999，面板从栏后滑出
 		background: rgba(0, 0, 0, 0.4);
 		opacity: 0;
@@ -627,7 +648,7 @@ import FlavorPopup from './components/FlavorPopup.vue'
 		z-index: 998;                      // 比购物车栏(999)低、比页面内容(蒙层997之下)高
 		display: flex;
 		flex-direction: column;
-		padding-bottom: calc(120rpx + env(safe-area-inset-bottom));   // 让出栏高+栏底距+安全区，末行不被悬浮栏压住
+		padding-bottom: calc(100rpx + env(safe-area-inset-bottom));   // 让出栏高+安全区（栏现已贴安全区），末行不被悬浮栏压住
 		background-color: #fff;
 		border-radius: 24rpx 24rpx 0 0;
 		transform: translateY(100%);     // 收起态：向下平移自身高度，完全滑出屏幕底部

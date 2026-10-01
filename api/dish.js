@@ -15,3 +15,11 @@ export const getDishList = ( categoryId ) => {
 		data:{ categoryId }
 	})
 }
+
+export const getSetmealList = ( categoryId ) => {
+	return request({
+		url: '/setmeal/list',
+		method:'get',
+		data:{ categoryId }
+	})
+}

@@ -7,7 +7,8 @@ const SUCCESS_CODE = 1        // 业务成功码
 const NO_AUTH_URLS = [        // 无需登录态即可调用的接口（登录本身要在拿到凭证前调）
     '/user/login',
     '/category/list',
-    '/dish/list'
+    '/dish/list',
+    '/setmeal/list'
 ]
 
 // 并发计数：>0 即 loading。布尔开关会被并发请求"提前关闭"
