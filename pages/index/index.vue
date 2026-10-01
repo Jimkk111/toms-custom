@@ -108,6 +108,7 @@
 			</scroll-view>
 			<view v-else class="panel-empty">购物车空空如也，去挑点好吃的吧</view>
 		</view>
+		<FlavorPopup ref="flavorPopup"></FlavorPopup>
 	</view>
 </template>
 
@@ -117,9 +118,11 @@ import { useCartStore } from '../../stores/cart'
 import { login } from '../../api/user.js'
 import {  getCategoryList, getDishList } from '../../api/dish'
 import HomeHeader from './components/HomeHeader.vue'
+import FlavorPopup from './components/FlavorPopup.vue'
 	export default {
 		components:{
-        	HomeHeader
+        	HomeHeader,
+        	FlavorPopup
     	},
 		computed: {
 			// 选项式组件里把 store 挂进 computed，模板里的绑定才有响应式
@@ -207,8 +210,7 @@ import HomeHeader from './components/HomeHeader.vue'
 				return dish.type === 1 && dish.flavors && dish.flavors.length > 0
 			},
 			handleChooseFlavor(dish) {
-				// TODO: 弹口味选择弹窗
-				uni.showToast({ title: '选规格（待实现）', icon: 'none' })
+				this.$refs.flavorPopup.open(dish)     // 选中/收集/提交逻辑后续在组件里补
 			},
 			// 套餐分类（type=2）→ "选套餐"入口，跳套餐详情选内容
 			isSetmeal(dish) {
