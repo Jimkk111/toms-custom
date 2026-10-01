@@ -57,7 +57,17 @@
 				</scroll-view>
 			</view>
 		</view>
-		<view class="cart"></view>
+		<view class="cart">
+			<view class="cart-icon">
+				<view class="bag"></view>
+				<view class="badge">3</view>
+			</view>
+			<view class="cart-info">
+				<view class="total"><text class="ico">￥</text>52</view>
+				<view class="fee">另需配送费￥6元</view>
+			</view>
+			<view class="cart-btn">去结算</view>
+		</view>
 	</view>
 </template>
 
@@ -247,7 +257,7 @@ import HomeHeader from './components/HomeHeader.vue'
 			background-color: #fff;
 
 			.dish-list {
-				padding-bottom: 140rpx;   // 避让悬浮购物车栏，最后一项能滚到可见
+				padding-bottom: calc(160rpx + env(safe-area-inset-bottom));   // 避让悬浮购物车栏（含凸出圆钮 + iPhone 安全区）
 				padding-top:20rpx;
 				.dish-card {
 					display: flex;
@@ -307,6 +317,119 @@ import HomeHeader from './components/HomeHeader.vue'
 					}
 				}
 			}
+		}
+	}
+
+	/* ========== 悬浮购物车栏 ========== */
+	.cart {
+		position: fixed;
+		left: 20rpx;
+		right: 20rpx;
+		bottom: calc(20rpx + env(safe-area-inset-bottom));   // 避让 iPhone 底部小黑条
+		z-index: 999;
+		display: flex;
+		align-items: center;
+		height: 100rpx;
+		padding-left: 140rpx;              // 给左侧凸出的圆钮让位
+		box-sizing: border-box;
+		background-color: #1a1a1a;
+		border-radius: 50rpx;
+		box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2);
+
+		.cart-icon {
+			position: absolute;
+			left: 20rpx;
+			bottom: 10rpx;                 // 底边悬在栏内，顶部凸出栏外
+			width: 110rpx;
+			height: 110rpx;
+			padding: 8rpx;                 // 深色外圈 = 黄钮描边
+			border-radius: 50%;
+			background-color: #2b2b2b;
+			box-sizing: border-box;
+
+			.bag {                         // CSS 画购物袋：黄圆底 + 袋身/提手两笔
+				position: relative;
+				width: 100%;
+				height: 100%;
+				border-radius: 50%;
+				background-color: $brand-color;
+
+				&::before {                // 袋身
+					content: '';
+					position: absolute;
+					left: 50%;
+					bottom: 20rpx;
+					transform: translateX(-50%);
+					width: 34rpx;
+					height: 26rpx;
+					border: 5rpx solid #1a1a1a;
+					border-radius: 0 0 8rpx 8rpx;
+					box-sizing: border-box;
+				}
+
+				&::after {                 // 提手
+					content: '';
+					position: absolute;
+					left: 50%;
+					top: 22rpx;
+					transform: translateX(-50%);
+					width: 18rpx;
+					height: 12rpx;
+					border: 5rpx solid #1a1a1a;
+					border-bottom: none;
+					border-radius: 10rpx 10rpx 0 0;
+					box-sizing: border-box;
+				}
+			}
+
+			.badge {
+				position: absolute;
+				top: -6rpx;
+				right: -6rpx;
+				min-width: 34rpx;
+				height: 34rpx;
+				line-height: 30rpx;        // 2rpx 边框补偿，数字居中
+				padding: 0 6rpx;
+				border: 2rpx solid #1a1a1a;
+				border-radius: 17rpx;
+				background-color: $price-color;
+				color: #fff;
+				font-size: $font-xxs;
+				text-align: center;
+				box-sizing: border-box;
+			}
+		}
+
+		.cart-info {
+			flex: 1;
+
+			.total {
+				color: #fff;
+				font-size: $font-lg;
+				font-weight: 600;
+
+				.ico {
+					font-size: $font-xs;
+				}
+			}
+
+			.fee {
+				margin-top: 2rpx;
+				font-size: $font-xxs;
+				color: #999;
+			}
+		}
+
+		.cart-btn {
+			align-self: stretch;           // 铺满栏高，圆角只留右侧，与黑栏拼成一体
+			display: flex;
+			align-items: center;
+			padding: 0 44rpx;
+			border-radius: 0 50rpx 50rpx 0;
+			background-color: $brand-color;
+			color: #1a1a1a;
+			font-size: $font-md;
+			font-weight: 600;
 		}
 	}
 </style>
