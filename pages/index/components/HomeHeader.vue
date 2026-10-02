@@ -17,15 +17,22 @@
 <script>
 import { mapState } from 'pinia'
 import { useAppStore } from '../../../stores/app'
+import { useUserStore } from '../../../stores/user'
 
 export default {
     data:() => {
         return {
-
+            checking: false            // 探测中标志，防连点重复跳转
         }
     },
     methods:{
         goMy() {
+            const userStore = useUserStore()
+            if (!userStore.sessionId) {
+                uni.showToast({ title: '请先登录', icon: 'none' })
+                setTimeout(() => uni.reLaunch({ url: '/pages/login/login' }), 400)
+                return
+            }
             uni.navigateTo({ url: '/pages/my/my' })
         }
     },
