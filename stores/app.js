@@ -8,9 +8,11 @@ export const useAppStore = defineStore('app', {
         // 全局 loading：由 utils/request.js 驱动（请求前开、complete 里关），
         // 任意页面用 v-if="appStore.loading" 挂遮罩消费
         loading: false,
-        // 地址页的返回目标：从"我的"或"提交订单页"进地址页前各写一次，
-        // 地址页选完后 redirectTo 回这里，用完即清
-        addressBackUrl: '',
+		// 地址页的返回目标：从"我的"或"提交订单页"进地址页前各写一次，
+		// 地址页选完后 redirectTo 回这里，用完即清
+		addressBackUrl: '',
+		// 地址簿选中的地址：地址页点卡片时写入，返回目标页（如提交订单页）消费后自清
+		selectedAddress: null,
         statusBarHeight:0,
         capsuleBarHeight:44
     }),
@@ -20,6 +22,9 @@ export const useAppStore = defineStore('app', {
         },
         setAddressBackUrl(url) {
             this.addressBackUrl = url
+        },
+        setSelectedAddress(addr) {
+            this.selectedAddress = addr
         },
         setStatusBarHeight(value){
             this.statusBarHeight = value

@@ -111,10 +111,11 @@ export default {
 			const detail = await getOrderDetail(orderId)   // detail 即订单对象本身
 			if (!detail) return
 			if (detail.payStatus === 1) {
-				uni.showToast({ title: '支付成功', icon: 'success' })
+				// 支付成功 → 重定向到订单成功页（redirectTo 替换掉提交页，避免返回时回到已支付的旧订单）
+				uni.redirectTo({ url: `/pages/order/success?id=${orderId}` })
 				return
 			}
-			setTimeout(() => this.pollPayStatus(orderNumber, retries - 1), 2000)
+			setTimeout(() => this.pollPayStatus(orderId, retries - 1), 2000)
 		}
 	},
 	async onLoad() {
