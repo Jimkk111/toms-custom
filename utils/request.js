@@ -23,7 +23,7 @@ const cleanData = (data) =>
             return params
         }, {})
 
-const request = async function ({ url, data = {}, method = 'GET', header = {}, silent = false, redirectOn401 = true }) {
+const request = async function ({ url, data = {}, method = 'GET', header = {}, silent = false, redirectOn401 = true, voidOk = false }) {
     const userStore = useUserStore()
     const appStore = useAppStore()
 
@@ -77,7 +77,10 @@ const request = async function ({ url, data = {}, method = 'GET', header = {}, s
         // ---- 业务层：{code, data, msg} ----
         const body = res.data
         if (body.code === SUCCESS_CODE) {
-            return body.data                   // 唯一的成功出口：只交业务数据
+            // 无 data 的写接口（增/删/改/催单等，实测 data 为 null）与失败同样返回 null，没法分；
+            // 传了 voidOk 的调用方在 data 为空时拿 true，才判断得了成败
+            if (voidOk && (body.data === null || body.data === undefined)) return true
+            return body.data                   // 其余场景：只交业务数据
         }
         uni.showToast({ title: body.msg || '操作失败', icon: 'none' })   // 其他业务失败，说后端的话
         return null

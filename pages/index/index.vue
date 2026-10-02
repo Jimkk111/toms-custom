@@ -70,7 +70,9 @@
 		</view>
 		<view class="cart">
 			<view class="cart-icon">
-				<view class="bag" @click="toggleCartPopup"></view>
+				<view class="bag" @click="toggleCartPopup">
+					<image class="bag-img" :src="bagIcon" mode="aspectFit"></image>
+				</view>
 				<view class="badge" v-if="cartStore.totalCount > 0">{{ cartStore.totalCount }}</view>
 			</view>
 			<view class="cart-info">
@@ -85,7 +87,7 @@
 			<view class="panel-title">
 				已选商品
 				<view class="clear-btn" @click="handleClearCart">
-					<view class="trash"></view>
+					<image class="trash-img" :src="trashIcon" mode="aspectFit"></image>
 					<text>清空</text>
 				</view>
 			</view>
@@ -139,6 +141,9 @@ import SetmealPopup from './components/SetmealPopup.vue'
 				dishList:[],
 				activeCategoryId: 0,
 				cartVisible: false,          // 购物车详情弹层开关
+				// 小程序 wxml 不支持内联 <svg>，矢量图标走 <image> + base64 data-URI
+				bagIcon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHBhdGggZD0iTTEzIDE3aDIybC0yLjIgMjEuMkE0IDQgMCAwIDEgMjguOCA0MmgtOS42YTQgNCAwIDAgMS00LTMuOEwxMyAxN3oiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHBhdGggZD0iTTE3LjUgMTd2LTIuNWE2LjUgNi41IDAgMCAxIDEzIDBWMTciIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=',
+				trashIcon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNiAyOCI+PHBhdGggZD0iTTIgNS41aDIyIiBzdHJva2U9IiM2NjY2NjYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTTEwIDUuNWEzIDMgMCAwIDEgNiAwIiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NjYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTTUuNSA5LjVoMTVMMTkuMSAyNC42YTIuNiAyLjYgMCAwIDEtMi42IDIuNEg5LjVhMi42IDIuNiAwIDAgMS0yLjYtMi40TDUuNSA5LjV6IiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NjYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0xMC41IDEzLjV2Ni41TTE1LjUgMTMuNXY2LjUiIHN0cm9rZT0iIzY2NjY2NiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4='
 			}
 		},
 		async onLoad() {
@@ -534,38 +539,18 @@ import SetmealPopup from './components/SetmealPopup.vue'
 			background-color: #2b2b2b;
 			box-sizing: border-box;
 
-			.bag {                         // CSS 画购物袋：黄圆底 + 袋身/提手两笔
-				position: relative;
+			.bag {                         // 黄圆底 + SVG 购物袋图标
+				display: flex;
+				align-items: center;
+				justify-content: center;
 				width: 100%;
 				height: 100%;
 				border-radius: 50%;
 				background-color: $brand-color;
 
-				&::before {                // 袋身
-					content: '';
-					position: absolute;
-					left: 50%;
-					bottom: 20rpx;
-					transform: translateX(-50%);
-					width: 34rpx;
-					height: 26rpx;
-					border: 5rpx solid #1a1a1a;
-					border-radius: 0 0 8rpx 8rpx;
-					box-sizing: border-box;
-				}
-
-				&::after {                 // 提手
-					content: '';
-					position: absolute;
-					left: 50%;
-					top: 22rpx;
-					transform: translateX(-50%);
-					width: 18rpx;
-					height: 12rpx;
-					border: 5rpx solid #1a1a1a;
-					border-bottom: none;
-					border-radius: 10rpx 10rpx 0 0;
-					box-sizing: border-box;
+				.bag-img {
+					width: 48rpx;
+					height: 48rpx;
 				}
 			}
 
@@ -675,37 +660,9 @@ import SetmealPopup from './components/SetmealPopup.vue'
 				font-weight: 400;
 				color: $text-sub;
 
-				.trash {                  // CSS 画垃圾桶：桶身 + 桶盖 + 提手
-					position: relative;
+				.trash-img {             // SVG 垃圾桶图标
 					width: 26rpx;
 					height: 28rpx;
-					border: 3rpx solid $text-sub;
-					border-radius: 4rpx 4rpx 8rpx 8rpx;
-					box-sizing: border-box;
-
-					&::before {          // 桶盖横条
-						content: '';
-						position: absolute;
-						top: -12rpx;
-						left: -6rpx;
-						width: calc(100% + 12rpx);
-						height: 3rpx;
-						background-color: $text-sub;
-					}
-
-					&::after {           // 提手小弧
-						content: '';
-						position: absolute;
-						top: -20rpx;
-						left: 50%;
-						transform: translateX(-50%);
-						width: 10rpx;
-						height: 7rpx;
-						border: 3rpx solid $text-sub;
-						border-bottom: none;
-						border-radius: 6rpx 6rpx 0 0;
-						box-sizing: border-box;
-					}
 				}
 			}
 		}

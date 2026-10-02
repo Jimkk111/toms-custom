@@ -32,19 +32,21 @@ export const getOrderPage = (params) => {
     })
 }
 
-// 再来一单：后端把该订单的菜品重新加回购物车（body 实际只用 id）
+// 再来一单：后端把该订单的菜品重新加回购物车（body 实际只用 id；成功 data 为 null，voidOk 拿 true）
 export const orderAgain = (id) => {
     return request({
         url: '/order/again',
         method: 'post',
-        data: { id }
+        data: { id },
+        voidOk: true
     })
 }
 
-// 催单
+// 催单（成功 data 为 null，voidOk 拿 true）
 export const orderReminder = (id) => {
     return request({
         url: `/order/reminder/${id}`,
-        method: 'put'
+        method: 'put',
+        voidOk: true
     })
 }

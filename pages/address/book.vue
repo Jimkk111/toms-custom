@@ -13,9 +13,15 @@
 			</view>
 			<view class="addr-text">{{ fullAddress(addr) }}</view>
 			<view class="ops">
-				<text class="op op-default" v-if="addr.isDefault !== 1" @click.stop="onSetDefault(addr)">设为默认</text>
-				<text class="op" @click.stop="goEdit(addr)">编辑</text>
-				<text class="op op-danger" @click.stop="onDelete(addr)">删除</text>
+				<view class="default-toggle" @click.stop="noop">
+					<text class="default-label">默认地址</text>
+					<switch :checked="addr.isDefault === 1" color="#ffc200"
+						@change="onToggleDefault(addr, $event)" />
+				</view>
+				<view class="text-ops">
+					<text class="op" @click.stop="goEdit(addr)">编辑</text>
+					<text class="op op-danger" @click.stop="onDelete(addr)">删除</text>
+				</view>
 			</view>
 		</view>
 
@@ -34,7 +40,7 @@
 
 <script>
 import { useAppStore } from '../../stores/app'
-import { listAddress, deleteAddress, setDefaultAddress } from '../../api/address.js'
+import { listAddress, deleteAddress, setDefaultAddress, updateAddress } from '../../api/address.js'
 
 export default {
 	data() {
@@ -72,9 +78,16 @@ export default {
 			this.appStore.setAddressBackUrl('')
 			uni.redirectTo({ url: backUrl })
 		},
-		async onSetDefault(addr) {
-			await setDefaultAddress(addr.id)   // 失败 request 层已 toast，刷新列表自然回到真值
-			this.loadList()
+		noop() {},
+		// 默认地址开关：开 = default 接口（后端顺带清掉其他默认）；
+		// 关 = 通用修改接口把 isDefault 落回 0（default 接口实测无法取消默认）
+		async onToggleDefault(addr, e) {
+			if (e.detail.value) {
+				await setDefaultAddress(addr.id)
+			} else {
+				await updateAddress({ id: addr.id, isDefault: 0 })
+			}
+			this.loadList()   // 成败都重拉，让开关回到真值（失败 request 层已 toast）
 		},
 		goAdd() {
 			uni.navigateTo({ url: '/pages/address/edit' })
@@ -162,23 +175,35 @@ export default {
 			.ops {
 				display: flex;
 				align-items: center;
-				justify-content: flex-end;
-				gap: 48rpx;
+				justify-content: space-between;
 				margin-top: 16rpx;
 				padding-top: 16rpx;
 				border-top: 1rpx solid $line-color;
 
-				.op {
-					font-size: $font-sm;
-					color: $text-sub;
+				.default-toggle {
+					display: flex;
+					align-items: center;
+					gap: 16rpx;
+
+					.default-label {
+						font-size: $font-sm;
+						color: $text-sub;
+					}
 				}
 
-				.op-default {
-					color: #d99a00;
-				}
+				.text-ops {
+					display: flex;
+					align-items: center;
+					gap: 48rpx;
 
-				.op-danger {
-					color: $price-color;
+					.op {
+						font-size: $font-sm;
+						color: $text-sub;
+					}
+
+					.op-danger {
+						color: $price-color;
+					}
 				}
 			}
 		}
