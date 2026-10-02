@@ -78,43 +78,44 @@ export default {
 		}
 	},
 	methods:{
-		async onPayment(){
+		async onPayment() {
+			if (this.isPaying) return                // 防连点
+			if (!this.address) {
+				uni.showToast({ title: '请先添加收货地址', icon: 'none' })
+				return
+			}
 			this.isPaying = true
-			let timer = null
-			try{
-				const orderData = {
-					addressId: this.address.id,
+			try {
+				// request 层：成功给的就是 data（此处为 {orderNumber,...}），失败为 null 且已 toast
+				const order = await orderSubmit({
+					addressBookId: this.address.id,
 					remark: this.remark,
 					payMethod: this.payMethod
-				}
-				const submitRes = await orderSubmit(orderData)
-				if(!submitRes.success){
-					uni.showToast({ title: submitRes.message, icon: 'none' })
-					return
-				}
-				const paymentRes = await orderPayment({
-					orderNumber:submitRes.data.orderNumber,
-					payMethod:this.payMethod
 				})
-				const getOrderStatus = async () => {
-					const getorderDeatilRes = await getOrderDetail(submitRes.data.orderNumber)
-					const orderDetail = getorderDeatilRes.data ?? {}
-					if(orderDetail.payStatus === 1){
-						uni.showToast({ title: '支付成功', icon: 'success' })
-						// uni.navigateTo({ url: `/pages/order/detail?orderNumber=${submitRes.data.orderNumber}` })
-						return
-					}
-					timer = setTimeout(getOrderStatus, 2000)
-				}
-				getOrderStatus()
-			} catch(e){
+				console.log('地址是=====>：',this.address)
+				if (!order) return
+				await orderPayment({ orderNumber: order.orderNumber, payMethod: this.payMethod })
+				this.pollPayStatus(order.id)   // 轮询独立出去，不被 finally 杀
+			} catch (e) {
 				uni.showToast({ title: e.message || '支付失败', icon: 'none' })
-			} finally{
-				clearTimeout(timer)
-				timer = null
+			} finally {
 				this.isPaying = false
 			}
 		},
+		// 支付结果轮询：带次数上限，防止后端异常时无限转
+		async pollPayStatus(orderId, retries = 15) {
+			if (retries <= 0) {
+				uni.showToast({ title: '支付结果确认超时，请稍后在订单中查看', icon: 'none' })
+				return
+			}
+			const detail = await getOrderDetail(orderId)   // detail 即订单对象本身
+			if (!detail) return
+			if (detail.payStatus === 1) {
+				uni.showToast({ title: '支付成功', icon: 'success' })
+				return
+			}
+			setTimeout(() => this.pollPayStatus(orderNumber, retries - 1), 2000)
+		}
 	},
 	async onLoad() {
 		// 进页先刷一次服务端购物车（车随账号走，以服务端为准）

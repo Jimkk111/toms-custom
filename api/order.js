@@ -18,7 +18,7 @@ export const orderPayment = (data) => {
 
 export const getOrderDetail = (orderId) => {
     return request({
-        url: `/order/detail/${orderId}`,
+        url: `/order/orderDetail/${orderId}`,
         method: 'get'
     })
 }
