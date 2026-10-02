@@ -1,10 +1,10 @@
 <template>
 	<view class="page">
-		<!-- <view class="brand">
-			<view class="logo">满</view>
-			<view class="name">满上</view>
+		<view class="brand">
+			<view class="logo">速</view>
+			<view class="name">宅送</view>
 			<view class="slogan">大众化的外送平台</view>
-		</view> -->
+		</view>
 		<view class="login-btn" @click="handleLogin">微信一键登录</view>
 	</view>
 </template>
