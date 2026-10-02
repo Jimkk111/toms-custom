@@ -7,8 +7,9 @@
 			<view class="desc">支付成功，商家正在加紧备餐，请耐心等待</view>
 		</view>
 
-		<!-- 底部操作区：目前只有【回到首页】，查看订单后续再接 -->
+		<!-- 底部操作区：查看订单 + 回到首页 -->
 		<view class="btn-bar">
+			<view class="detail-btn" v-if="orderId" @click="goDetail">查看订单</view>
 			<view class="home-btn" @click="goHome">回到首页</view>
 		</view>
 	</view>
@@ -21,12 +22,17 @@
 				orderId: null      // redirectTo 带入，先留着供后续【查看订单】用
 			}
 		},
-		methods: {
-			// 回到首页：reLaunch 重置页面栈，首页重新 onLoad 拉最新购物车/菜品
-			goHome() {
-				uni.reLaunch({ url: '/pages/index/index' })
-			}
+	methods: {
+		// 回到首页：reLaunch 重置页面栈，首页重新 onLoad 拉最新购物车/菜品
+		goHome() {
+			uni.reLaunch({ url: '/pages/index/index' })
 		},
+		// 查看订单详情：用 redirectTo 把成功页替换掉（栈变为 首页→详情），
+		// 详情页点原生返回就直接回首页；小程序原生返回无法拦截，只能靠栈控制
+		goDetail() {
+			uni.redirectTo({ url: `/pages/order/detail?id=${this.orderId}` })
+		}
+	},
 		onLoad(options) {
 			this.orderId = options.id || null
 		}
@@ -86,15 +92,30 @@
 		}
 
 		.btn-bar {
+			display: flex;
+			gap: 24rpx;
+
+			.detail-btn,
 			.home-btn {
+				flex: 1;
 				display: flex;
 				align-items: center;
 				justify-content: center;
 				height: 88rpx;
 				border-radius: 999rpx;
+				font-size: $font-md;
+			}
+
+			.detail-btn {
+				border: 1rpx solid #d9d9d9;
+				background: #fff;
+				color: $text-sub;
+				font-weight: 400;
+			}
+
+			.home-btn {
 				background: $brand-gradient;
 				color: #1a1a1a;
-				font-size: $font-md;
 				font-weight: 600;
 			}
 		}

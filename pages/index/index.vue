@@ -149,7 +149,11 @@ import SetmealPopup from './components/SetmealPopup.vue'
 		async onLoad() {
 			await this.loadCategoryList()
 			this.loadDishList()
-			// 已登录才拉服务端购物车（该接口不在白名单）；未登录等触发登录后自然会拉
+		},
+		// 购物车统一放 onShow 拉：首次进页 onShow 会跟在 onLoad 后触发，
+		// 从详情页等返回时也能刷新（下单后车已被后端清空、再来一单加了菜等场景）；
+		// listCart 对 401 是被动的，session 过期不会把逛菜单的用户踢去登录页
+		onShow() {
 			if (useUserStore().sessionId) {
 				this.cartStore.load()
 			}
