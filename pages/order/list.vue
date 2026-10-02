@@ -72,7 +72,8 @@
 				finished: false,
 				loaded: false,         // 首拉完成标志，空态展示门槛
 				seq: 0,                // 请求序号：tab 快速切换时丢弃过期响应
-				payingId: null         // 正在支付的订单 id，防重复拉起
+				payingId: null,        // 正在支付的订单 id，防重复拉起
+				remindingId: null      // 正在催单的订单 id，防连点刷接口
 			}
 		},
 		methods: {
@@ -174,8 +175,14 @@
 				setTimeout(() => this.pollPayStatus(orderId, retries - 1), 2000)
 			},
 			async onReminder(order) {
-				const ok = await orderReminder(order.id)
-				if (ok) uni.showToast({ title: '已提醒商家加急备餐', icon: 'none' })
+				if (this.remindingId) return          // 同一时间只放行一个催单请求
+				this.remindingId = order.id
+				try {
+					const ok = await orderReminder(order.id)
+					if (ok) uni.showToast({ title: '已提醒商家加急备餐', icon: 'none' })
+				} finally {
+					this.remindingId = null
+				}
 			},
 			async onAgain(order) {
 				const ok = await orderAgain(order.id)

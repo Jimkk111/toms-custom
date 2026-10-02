@@ -47,9 +47,8 @@ export default {
 		appStore() {
 			return useAppStore()
 		},
-		// 选地址模式：点卡片即"选中并返回"；从"我的"纯管理进入时同样生效（按 app store 约定）
 		isSelectMode() {
-			return !!this.appStore.addressBackUrl
+			return this.appStore.addressBackUrl === 'pages/order/submit'
 		}
 	},
 	onShow() {

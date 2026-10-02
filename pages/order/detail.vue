@@ -86,7 +86,8 @@
 				orderId: null,
 				order: null,
 				loaded: false,
-				paying: false            // 防重复拉起支付
+				paying: false,           // 防重复拉起支付
+				reminding: false        // 防连点催单
 			}
 		},
 		computed: {
@@ -192,8 +193,14 @@
 				setTimeout(() => this.pollPayStatus(orderId, retries - 1), 2000)
 			},
 			async onReminder() {
-				const ok = await orderReminder(this.order.id)
-				if (ok) uni.showToast({ title: '已提醒商家加急备餐', icon: 'none' })
+				if (this.reminding) return
+				this.reminding = true
+				try {
+					const ok = await orderReminder(this.order.id)
+					if (ok) uni.showToast({ title: '已提醒商家加急备餐', icon: 'none' })
+				} finally {
+					this.reminding = false
+				}
 			},
 			async onAgain() {
 				const ok = await orderAgain(this.order.id)
