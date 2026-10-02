@@ -3,7 +3,13 @@
 		<!-- 地址信息 + 预计送达（选地址/改地址的跳转后续接） -->
 		<view class="card">
 			<view class="addr-row">
-				<view class="addr-text">{{ userStore.userInfo.address || '暂无收货地址' }}</view>
+				<view class="addr-info">
+					<view class="contact" v-if="address">
+						<text class="consignee">{{ address.consignee }}</text>
+						<text class="phone">{{ address.phone }}</text>
+					</view>
+					<view class="addr-text">{{ address ? fullAddress : '暂无默认收货地址' }}</view>
+				</view>
 				<view class="arrow"></view>
 			</view>
 			<view class="eta-row">预计 {{ eta }} 送达（尽快送出）</view>
@@ -40,33 +46,81 @@
 
 		<!-- 支付按钮（支付逻辑后续接） -->
 		<view class="pay-bar">
-			<view class="pay-btn">去支付￥{{ cartStore.totalAmount }}</view>
+			<view class="pay-btn" @click="onPayment()">去支付￥{{ cartStore.totalAmount }}</view>
 		</view>
 	</view>
 </template>
 
 <script>
 import { useCartStore } from '../../stores/cart'
-import { useUserStore } from '../../stores/user'
+import { getDefaultAddress } from '../../api/address.js'
+import { orderSubmit,orderPayment,getOrderDetail } from '../../api/order.js'; 
 
 export default {
 	data() {
 		return {
 			remark: '',
-			eta: ''
+			eta: '',
+			address: null,      // 默认收货地址，onLoad 拉取；为空显示占位提示
+			payMethod: 0,
+			isPaying: false
 		}
 	},
 	computed: {
 		cartStore() {
 			return useCartStore()
 		},
-		userStore() {
-			return useUserStore()
+		// 省市区 + 详细地址拼成一行
+		fullAddress() {
+			if (!this.address) return ''
+			const { provinceName, cityName, districtName, detail } = this.address
+			return `${provinceName || ''}${cityName || ''}${districtName || ''}${detail || ''}`
 		}
+	},
+	methods:{
+		async onPayment(){
+			this.isPaying = true
+			let timer = null
+			try{
+				const orderData = {
+					addressId: this.address.id,
+					remark: this.remark,
+					payMethod: this.payMethod
+				}
+				const submitRes = await orderSubmit(orderData)
+				if(!submitRes.success){
+					uni.showToast({ title: submitRes.message, icon: 'none' })
+					return
+				}
+				const paymentRes = await orderPayment({
+					orderNumber:submitRes.data.orderNumber,
+					payMethod:this.payMethod
+				})
+				const getOrderStatus = async () => {
+					const getorderDeatilRes = await getOrderDetail(submitRes.data.orderNumber)
+					const orderDetail = getorderDeatilRes.data ?? {}
+					if(orderDetail.payStatus === 1){
+						uni.showToast({ title: '支付成功', icon: 'success' })
+						// uni.navigateTo({ url: `/pages/order/detail?orderNumber=${submitRes.data.orderNumber}` })
+						return
+					}
+					timer = setTimeout(getOrderStatus, 2000)
+				}
+				getOrderStatus()
+			} catch(e){
+				uni.showToast({ title: e.message || '支付失败', icon: 'none' })
+			} finally{
+				clearTimeout(timer)
+				timer = null
+				this.isPaying = false
+			}
+		},
 	},
 	async onLoad() {
 		// 进页先刷一次服务端购物车（车随账号走，以服务端为准）
 		await this.cartStore.load()
+		// 默认地址：后端没有默认地址时 data 为空，保持占位提示不报错
+		this.address = (await getDefaultAddress()) || null
 		// 空车直进守卫：正常流程必然从购物车结算进来，不该出现空明细
 		if (!useCartStore().items.length) {
 			uni.showToast({ title: '请先选购商品', icon: 'none' })
@@ -118,9 +172,30 @@ export default {
 			align-items: center;
 			gap: 16rpx;
 
-			.addr-text {
+			.addr-info {
 				flex: 1;
-				min-width: 0;
+				min-width: 0;            // 长地址收缩，不把箭头挤出去
+
+				.contact {
+					display: flex;
+					align-items: center;
+					gap: 16rpx;
+					margin-bottom: 8rpx;
+
+					.consignee {
+						font-size: $font-md;
+						font-weight: 600;
+						color: $text-main;
+					}
+
+					.phone {
+						font-size: $font-sm;
+						color: $text-sub;
+					}
+				}
+			}
+
+			.addr-text {
 				font-size: $font-sm;
 				color: $text-main;
 				line-height: 40rpx;
