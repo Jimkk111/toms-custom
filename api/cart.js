@@ -25,9 +25,12 @@ export const cleanCart = () => {
 	})
 }
 
+// 购物车列表属于被动读：session 过期返回 401 时只静默清登录态，不强制跳登录页
+// （首页进页就会拉它，别把只是逛菜单的用户踢去登录；主动操作仍会正常引导登录）
 export const listCart = () => {
 	return request({
 		url: '/shoppingCart/list',
-		method: 'get'
+		method: 'get',
+		redirectOn401: false
 	})
 }

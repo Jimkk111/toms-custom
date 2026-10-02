@@ -23,7 +23,7 @@ const cleanData = (data) =>
             return params
         }, {})
 
-const request = async function ({ url, data = {}, method = 'GET', header = {}, silent = false }) {
+const request = async function ({ url, data = {}, method = 'GET', header = {}, silent = false, redirectOn401 = true }) {
     const userStore = useUserStore()
     const appStore = useAppStore()
 
@@ -57,11 +57,15 @@ const request = async function ({ url, data = {}, method = 'GET', header = {}, s
         })
 
         // ---- HTTP 层 ----
-        // 鉴权失败：后端返回 HTTP 401 → 清本地登录态，回登录页重登
+        // 鉴权失败：后端返回 HTTP 401 → 清本地登录态；用户主动操作跳登录页重登，
+        // 被动请求（redirectOn401=false，如首页后台拉购物车）只静默清态留在当前页，
+        // 后续真正需要登录的操作自会引导登录
         if (res.statusCode === 401) {
             userStore.logOut()
-            uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
-            uni.reLaunch({ url: '/pages/login/login' })
+            if (redirectOn401) {
+                uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+                uni.reLaunch({ url: '/pages/login/login' })
+            }
             return null
         }
         // 404/500/502 等：body 是网关错误体，结构不可信
